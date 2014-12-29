@@ -115,7 +115,7 @@ class SparkRunner(val zooKeeperConnect: String,
       }, _ ++ _)
 
       val localStatuses: mutable.HashMap[String, DeviceStatus] = deviceStatuses.localValue
-      val unique = changes//.filterNot(c => localStatuses.get(c._1) == Some(Offline(c._2)))
+      val unique = changes.filter(c => localStatuses.get(c._1) != Some(Offline(c._2)))
 
       unique.foreach(c => producer.value.send(bKeyConverter.value(c._2),
                                               bEventConverter.value(CustomerLeftEvent(Device(c._1), c._2))))
@@ -140,7 +140,7 @@ class SparkRunner(val zooKeeperConnect: String,
         .fold(Map.empty[String, DateTime])(_ ++ _)
 
       val localStatuses: mutable.HashMap[String, DeviceStatus] = deviceStatuses.localValue
-      val unique = changes//.filterNot(c => localStatuses.get(c._1) == Some(Online))
+      val unique = changes.filter(c => localStatuses.get(c._1) != Some(Online))
 
       unique.foreach(c => producer.value.send(bKeyConverter.value(c._2),
                                               bEventConverter.value(NewCustomerEvent(Device(c._1), c._2))))
