@@ -44,7 +44,7 @@ class EventSerializer extends Serializer[Event] {
       val timestamp = jodaSerializer.read(kryo, input, classOf[DateTime])
       CustomerLeftEvent(Device(deviceId), timestamp)
 
-    case "NC" =>
+    case "IE" =>
       val deviceId = input.readString()
       val xCoord = input.readLong()
       val yCoord = input.readLong()

@@ -38,11 +38,11 @@ libraryDependencies ++= Seq(jdbc, anorm, cache, ws,
                             "com.101tec" % "zkclient" % "0.4",
                             "org.apache.zookeeper" % "zookeeper" % "3.3.4",
                             "com.sclasen" %% "akka-kafka" % "0.0.9-0.8.2-beta-SNAPSHOT",
-//                            "org.apache.spark" % "spark-streaming-kafka_2.10" % sparkVer
-//                              exclude("org.apache.kafka", "kafka_2.10")
-//                              exclude("org.apache.spark", "spark-streaming_2.10")
-//                              exclude("org.scalacheck", "scalacheck_2.10")
-//                              exclude("org.scalatest", "scalatest_2.10")
+                            "org.apache.spark" % "spark-streaming-kafka_2.10" % sparkVer
+                              exclude("org.apache.kafka", "kafka_2.10")
+                              exclude("org.apache.spark", "spark-streaming_2.10")
+                              exclude("org.scalacheck", "scalacheck_2.10")
+                              exclude("org.scalatest", "scalatest_2.10"),
                             "javax.servlet" % "javax.servlet-api" % "3.1.0",
                             "de.javakaffee" % "kryo-serializers" % "0.27")
                         .map(_.excludeAll(ExclusionRule(name = "jms"),

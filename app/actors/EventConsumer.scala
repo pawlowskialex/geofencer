@@ -27,5 +27,6 @@ class EventConsumer extends Actor with Logging {
           logger.info(s"Received event: $timestamp -> $event")
       }
       sender ! StreamFSM.Processed
+    case message => logger.warn(s"EventConsumer received unknown message: $message")
   }
 }
