@@ -25,6 +25,7 @@ class EventConsumer extends Actor with Logging {
         case (Success(timestamp), Success(event)) =>
           EventsContainer.events.update(timestamp, event)
           logger.info(s"Received event: $timestamp -> $event")
+        case result => logger.warn(s"EventConsumer failed to decode message: $result")
       }
       sender ! StreamFSM.Processed
     case message => logger.warn(s"EventConsumer received unknown message: $message")

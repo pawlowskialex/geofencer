@@ -11,6 +11,8 @@ import kafka.serializer.DefaultDecoder
 import kryo.ConfiguredKryoInstantiator
 import model._
 import org.apache.spark.SparkConf
+import org.apache.spark.mllib.clustering.StreamingKMeans
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext._
 import org.apache.spark.streaming.kafka.KafkaUtils
@@ -90,6 +92,14 @@ class SparkRunner(val zooKeeperConnect: String,
       }
     }
 
+    stream.foreachRDD(rdd => rdd.foreach {
+      case (_, Entry(Device(id), _, _)) =>
+        deviceStatuses.localValue get id match {
+          case Some(Offline(_)) => deviceStatuses +=(id, Online)
+          case _ =>
+        }
+    })
+
     val groupedValueStream = stream.groupByKey()
     val wentOfflineStream =
       groupedValueStream
@@ -114,7 +124,7 @@ class SparkRunner(val zooKeeperConnect: String,
         case (sum, (deviceId, (timestamp, _))) => sum + (deviceId -> timestamp)
       }, _ ++ _)
 
-      val localStatuses: mutable.HashMap[String, DeviceStatus] = deviceStatuses.localValue
+      val localStatuses = deviceStatuses.localValue
       val unique = changes.filter(c => localStatuses.get(c._1) != Some(Offline(c._2)))
 
       unique.foreach(c => producer.value.send(bKeyConverter.value(c._2),
@@ -139,7 +149,7 @@ class SparkRunner(val zooKeeperConnect: String,
         })
         .fold(Map.empty[String, DateTime])(_ ++ _)
 
-      val localStatuses: mutable.HashMap[String, DeviceStatus] = deviceStatuses.localValue
+      val localStatuses = deviceStatuses.localValue
       val unique = changes.filter(c => localStatuses.get(c._1) != Some(Online))
 
       unique.foreach(c => producer.value.send(bKeyConverter.value(c._2),
@@ -159,7 +169,8 @@ class SparkRunner(val zooKeeperConnect: String,
             case (tuple, entry) => tuple.copy(_2 = tuple._2 + entry.location.x, _3 = tuple._3 + entry.location.y)
           }
       }
-      .map { case (deviceId, xVec, yVec, entries) => (deviceId, variance(xVec), variance(yVec), entries) }
+      .map { case (deviceId, xVec, yVec, entries) =>
+        (deviceId, variance(xVec): Double, variance(yVec): Double, entries) }
       .filter { case (_, xVariance, yVariance, _) => xVariance < 5.0 && yVariance < 5.0 }
       .filter { case (deviceId, _, _, _) => deviceStatuses.localValue.get(deviceId) match {
         case Some(Offline(_)) => false
@@ -172,6 +183,20 @@ class SparkRunner(val zooKeeperConnect: String,
         producer.value.send(bKeyConverter.value(entry.timestamp),
                             bEventConverter.value(InterestDetectedEvent(entry.device, entry.location, entry.timestamp)))
     })
+
+    val vectoredStream =
+      stream
+      .map { case (k, entry) => (k, Vectors.dense(entry.location.x, entry.location.y)) }
+
+    val clusterModel = new StreamingKMeans()
+                .setK(100)
+                .setDecayFactor(1.0)
+                .setRandomCenters(2, 0.0)
+
+    val clusteredStream = clusterModel.predictOnValues(vectoredStream)
+    val clusteredEntryStream = stream.join(clusteredStream).groupByKey()
+
+    clusteredEntryStream.foreachRDD(rdd => rdd.foreach(println))
 
     sparkStreamingContext.start()
   }
